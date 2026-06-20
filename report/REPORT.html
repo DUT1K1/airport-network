@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Global Flight Network Dashboard — Report</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    color: #1a2332; line-height: 1.42; font-size: 10.3pt;
+    max-width: 800px; margin: 0 auto; padding: 24px;
+  }
+  h1 { font-size: 18pt; margin: 0 0 2px; color: #14306b; }
+  h2 { font-size: 12pt; margin: 14px 0 4px; color: #14306b; border-bottom: 1.5px solid #d8e0f0; padding-bottom: 2px; }
+  .sub { color: #5b6b85; font-size: 9.5pt; margin-bottom: 10px; }
+  p { margin: 4px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 9pt; }
+  th, td { border: 1px solid #cfd8ea; padding: 3px 6px; text-align: left; }
+  th { background: #eef2fb; }
+  td.n { text-align: right; }
+  code { background: #f0f3fa; padding: 0 3px; border-radius: 3px; font-size: 9pt; }
+  pre { background: #f5f7fc; border: 1px solid #e0e6f2; border-radius: 5px; padding: 8px 10px; font-size: 8.8pt; overflow-x: auto; }
+  ul { margin: 4px 0; padding-left: 20px; }
+  li { margin: 1px 0; }
+  .cols { display: flex; gap: 18px; }
+  .cols > div { flex: 1; }
+  .tag { display:inline-block; background:#14306b; color:#fff; border-radius:4px; padding:1px 7px; font-size:8.5pt; }
+</style>
+</head>
+<body>
+  <h1>Global Flight Network Dashboard</h1>
+  <div class="sub">Graph Databases (KIU, Semester 8) · David Maisuradze · Neo4j 5 + NeoDash 2.4 + Docker</div>
+
+  <h2>1. Data &amp; source</h2>
+  <p>The dashboard is built on the <strong>OpenFlights</strong> dataset
+  (github.com/jpatokal/openflights, Open Database License) — a well-known, community-maintained
+  collection of global civil-aviation data. Four raw files were used:</p>
+  <table>
+    <tr><th>File</th><th class="n">Rows</th><th>Contents</th></tr>
+    <tr><td>airports.dat</td><td class="n">7,698</td><td>id, name, city, country, IATA/ICAO, latitude/longitude, altitude, timezone</td></tr>
+    <tr><td>airlines.dat</td><td class="n">6,162</td><td>id, name, IATA/ICAO, callsign, country, active flag</td></tr>
+    <tr><td>routes.dat</td><td class="n">67,663</td><td>airline + source airport + destination airport + stops + equipment</td></tr>
+    <tr><td>countries.dat</td><td class="n">261</td><td>country name, ISO code</td></tr>
+    <tr><td>planes.dat</td><td class="n">246</td><td>aircraft type name, IATA/ICAO code</td></tr>
+  </table>
+  <p>Flights data was chosen because it is <strong>inherently a graph</strong> — airports are
+  nodes, routes are edges — so it showcases graph queries (hubs, connectivity, shortest paths)
+  far better than a relational table, while staying intuitive to present.</p>
+
+  <h2>2. Graph model</h2>
+  <div class="cols">
+    <div>
+      <p><strong>Node types (5)</strong></p>
+      <ul>
+        <li><strong>Airport</strong> — code, name, city, country, lat/long, altitude, spatial <code>location</code></li>
+        <li><strong>Airline</strong> — name, IATA/ICAO, callsign, country, active</li>
+        <li><strong>Country</strong> — name, isoCode</li>
+        <li><strong>City</strong> — name, country</li>
+        <li><strong>Plane</strong> — aircraft type name, IATA/ICAO code</li>
+      </ul>
+    </div>
+    <div>
+      <p><strong>Relationship types (5)</strong></p>
+      <ul>
+        <li><code>(:Airport)-[:LOCATED_IN]-&gt;(:Country)</code></li>
+        <li><code>(:Airport)-[:IN_CITY]-&gt;(:City)</code></li>
+        <li><code>(:City)-[:IN_COUNTRY]-&gt;(:Country)</code></li>
+        <li><code>(:Airline)-[:REGISTERED_IN]-&gt;(:Country)</code></li>
+        <li><code>(:Airport)-[:ROUTE {airline, stops, equipment, <strong>distanceKm</strong>}]-&gt;(:Airport)</code></li>
+      </ul>
+    </div>
+  </div>
+  <p>Loaded totals: <span class="tag">7,698 airports</span> <span class="tag">6,161 airlines</span>
+  <span class="tag">355 countries</span> <span class="tag">7,095 cities</span>
+  <span class="tag">220 aircraft types</span> <span class="tag">66,771 routes</span></p>
+
+  <h2>3. Conversion &amp; import</h2>
+  <p>The raw files are headerless, comma-separated and use <code>\N</code> for nulls, so Neo4j
+  reads them directly with <code>LOAD CSV</code> — no manual editing. The pipeline is:
+  download (<code>scripts/download_data.sh</code>) → start Neo4j + NeoDash
+  (<code>docker compose up -d</code>) → run five Cypher scripts (<code>scripts/import.sh</code>):
+  constraints/indexes, then countries, airports + cities, airlines, routes.</p>
+  <p>Key step: OpenFlights has <strong>no distance or price column</strong>, so the great-circle
+  distance of every route is <strong>computed in Cypher</strong>. Each airport gets a spatial
+  <code>point</code> from its coordinates, and each route stores
+  <code>distanceKm = round(point.distance(src, dst)/1000)</code>. This derived property powers
+  the distance histogram, the route tables and the shortest-distance routing.</p>
+
+  <h2>4. Dashboard contents</h2>
+  <p>Four pages, 41 reports, grouped by topic.</p>
+  <div class="cols">
+    <div>
+      <p><strong>Page 1 — Airport Network Analysis</strong></p>
+      <ul>
+        <li>KPI cards; <strong>bar</strong> busiest airports; <strong>graph</strong> 12-hub network</li>
+        <li><strong>Line</strong> route-distance distribution; <strong>pie</strong> top airlines</li>
+        <li><strong>Table (CSV)</strong> connectivity ranking; <strong>map</strong> + density <strong>heatmap</strong></li>
+      </ul>
+      <p><strong>Page 2 — Country &amp; Route Connectivity</strong> (interactive)</p>
+      <ul>
+        <li>Source &amp; destination country selectors; KPIs</li>
+        <li><strong>Graph</strong> shortest-distance path (Dijkstra, multi-hop); country-to-country network</li>
+        <li><strong>Bar</strong> + <strong>table (CSV)</strong> + <strong>map</strong> of the chosen countries</li>
+      </ul>
+    </div>
+    <div>
+      <p><strong>Page 3 — Aviation Records &amp; Trivia</strong></p>
+      <ul>
+        <li><strong>Bar</strong> longest routes &amp; busiest city pairs; <strong>pie</strong> aircraft types</li>
+        <li><strong>Tables (CSV)</strong> highest-altitude, most-isolated, shortest flights</li>
+      </ul>
+      <p><strong>Page 4 — Airport &amp; Airline Explorer</strong> (interactive)</p>
+      <ul>
+        <li>From/To airport + airline selectors</li>
+        <li><strong>Map + table</strong> destinations; <strong>value</strong> "can I fly direct?"</li>
+        <li><strong>Line</strong> reachability within N stops; <strong>graph + map</strong> airline network</li>
+      </ul>
+    </div>
+  </div>
+  <p>Tables expose CSV download; charts, graphs and maps expose PNG export.</p>
+
+  <h2>5. Running it</h2>
+  <pre>bash scripts/download_data.sh     # fetch OpenFlights data
+docker compose up -d              # start Neo4j + NeoDash
+bash scripts/import.sh            # load the graph</pre>
+  <p>Open NeoDash at <code>http://localhost:5005</code>, connect to
+  <code>neo4j://localhost:7687</code> (user <code>neo4j</code> / password <code>flights123</code>),
+  then <strong>Load</strong> <code>dashboard/flights_dashboard.json</code>.</p>
+</body>
+</html>
