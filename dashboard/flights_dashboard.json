@@ -269,8 +269,8 @@
         },
         {
           "id": "p3-r03-altitude-table",
-          "title": "Highest-Altitude Airports in the World (downloadable CSV)",
-          "query": "MATCH (a:Airport)-[:LOCATED_IN]->(co:Country)\nWHERE a.iata IS NOT NULL AND a.altitude IS NOT NULL\nRETURN a.iata AS Code, a.name AS Airport, coalesce(a.city,'') AS City, co.name AS Country, toInteger(a.altitude) AS AltitudeFt\nORDER BY AltitudeFt DESC LIMIT 20",
+          "title": "Highest-Altitude Airports in the World (meters, downloadable CSV)",
+          "query": "MATCH (a:Airport)-[:LOCATED_IN]->(co:Country)\nWHERE a.iata IS NOT NULL AND a.altitude IS NOT NULL\nRETURN a.iata AS Code, a.name AS Airport, coalesce(a.city,'') AS City, co.name AS Country, toInteger(a.altitude) AS AltitudeM\nORDER BY AltitudeM DESC LIMIT 20",
           "type": "table",
           "x": 0, "y": 8, "width": 12, "height": 5,
           "selection": {},

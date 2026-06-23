@@ -91,5 +91,6 @@ in NeoDash — a malformed file fails silently to import.
 
 ## Report
 
-`report/REPORT.md` is the source; `report/REPORT.html` is print-ready. Submission PDF is made
-by opening the HTML in a browser and Save-as-PDF (no PDF toolchain is installed locally).
+`report/REPORT.md` is the single source for the written report. To produce a submission PDF,
+render the Markdown (e.g. open it in a Markdown previewer or VS Code and Save-as-PDF); no PDF
+toolchain is installed locally.
