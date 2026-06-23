@@ -26,7 +26,7 @@
         {
           "id": "p1-r00-intro",
           "title": "",
-          "query": "## ✈️ Global Flight Network — Airport Network Analysis\n\nThis page analyses the worldwide airport network built from the **OpenFlights** dataset (airports, airlines and routes) loaded into Neo4j. Distances on every route are computed geographically with `point.distance()`. Explore the busiest hubs, how they connect, how route distances are distributed, and where the world's airports sit on the map.",
+          "query": "## Global Flight Network — Airport Network Analysis\n\nThis page analyzes the worldwide airport network built from the **OpenFlights** dataset (airports, airlines and routes) imported into Neo4j. Distance on all routes is calculated geographically using `point.distance()`. Find out the busiest hubs, how they are connected, the distribution of route distances and the location of the world's airports on the map.",
           "type": "text",
           "x": 0, "y": 0, "width": 24, "height": 2,
           "selection": {},
@@ -79,8 +79,8 @@
         },
         {
           "id": "p1-r06-hub-graph",
-          "title": "Connection Network of the 12 Largest Hubs",
-          "query": "MATCH (a:Airport) WHERE a.iata IS NOT NULL\nWITH a, COUNT { (a)-[:ROUTE]-() } AS deg ORDER BY deg DESC LIMIT 12\nWITH collect(a) AS hubs\nUNWIND hubs AS h\nMATCH (h)-[r:ROUTE]->(b:Airport) WHERE b IN hubs\nRETURN h, r, b",
+          "title": "Connection Network of the 10 Largest Hubs",
+          "query": "MATCH (a:Airport) WHERE a.iata IS NOT NULL\nWITH a, COUNT { (a)-[:ROUTE]-() } AS deg ORDER BY deg DESC LIMIT 10\nWITH collect(a) AS hubs\nUNWIND hubs AS h\nMATCH (h)-[r:ROUTE]->(b:Airport) WHERE b IN hubs\nRETURN h, r, b",
           "type": "graph",
           "x": 12, "y": 4, "width": 12, "height": 5,
           "selection": { "Airport": "iata", "ROUTE": "(label)" },
@@ -139,7 +139,7 @@
         {
           "id": "p2-r00-intro",
           "title": "",
-          "query": "## 🌍 Country & Route Connectivity\n\nPick a **source** and a **destination** country below. The reports then show the direct air links between them, the shortest-distance flight path connecting their main hubs (computed with Dijkstra over geographic route distances), and where each country sits in the global network. Tables are downloadable as CSV.",
+          "query": "## Country & Route Connectivity\n\nPick a **source** and a **destination** country below. The reports show direct air links, and — crucially — an **auto-built connecting itinerary** for any pair, even when no direct flight exists (e.g. Georgia → Japan). Dijkstra searches over geographic route distances between the top hubs of each country to find the shortest multi-stop path; the graph and the leg-by-leg table reveal every intermediate airport and airline. Tables are downloadable as CSV.",
           "type": "text",
           "x": 0, "y": 0, "width": 24, "height": 2,
           "selection": {},
@@ -174,8 +174,8 @@
         },
         {
           "id": "p2-r04-kpi-mindist",
-          "title": "Shortest path distance (km)",
-          "query": "MATCH (src:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_source_country})\nWITH src, COUNT { (src)-[:ROUTE]->() } AS d ORDER BY d DESC LIMIT 1\nMATCH (dst:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_destination_country})\nWITH src, dst, COUNT { (dst)-[:ROUTE]->() } AS d ORDER BY d DESC LIMIT 1\nCALL apoc.algo.dijkstra(src, dst, 'ROUTE>', 'distanceKm') YIELD weight\nRETURN toInteger(weight) AS MinDistanceKm LIMIT 1",
+          "title": "Shortest connecting distance (km)",
+          "query": "MATCH (s:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_source_country})\nWITH s, COUNT { (s)-[:ROUTE]->() } AS sd WHERE sd > 0\nWITH s ORDER BY sd DESC LIMIT 3\nWITH collect(s) AS sources\nMATCH (d:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_destination_country})\nWITH sources, d, COUNT { (d)<-[:ROUTE]-() } AS dd WHERE dd > 0\nWITH sources, d ORDER BY dd DESC LIMIT 3\nWITH sources, collect(d) AS dests\nUNWIND sources AS src\nUNWIND dests AS dst\nCALL apoc.algo.dijkstra(src, dst, 'ROUTE>', 'distanceKm') YIELD weight\nRETURN toInteger(weight) AS MinDistanceKm ORDER BY MinDistanceKm ASC LIMIT 1",
           "type": "value",
           "x": 18, "y": 2, "width": 6, "height": 2,
           "selection": {},
@@ -201,12 +201,12 @@
         },
         {
           "id": "p2-r07-path-graph",
-          "title": "Shortest-Distance Flight Path Between Main Hubs",
-          "query": "MATCH (src:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_source_country})\nWITH src, COUNT { (src)-[:ROUTE]->() } AS d ORDER BY d DESC LIMIT 1\nMATCH (dst:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_destination_country})\nWITH src, dst, COUNT { (dst)-[:ROUTE]->() } AS d ORDER BY d DESC LIMIT 1\nCALL apoc.algo.dijkstra(src, dst, 'ROUTE>', 'distanceKm') YIELD path\nRETURN path LIMIT 1",
-          "type": "graph",
+          "title": "Connecting Flight Path on the Map (stops numbered 1 → N)",
+          "query": "MATCH (s:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_source_country})\nWITH s, COUNT { (s)-[:ROUTE]->() } AS sd WHERE sd > 0\nWITH s ORDER BY sd DESC LIMIT 3\nWITH collect(s) AS sources\nMATCH (d:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_destination_country})\nWITH sources, d, COUNT { (d)<-[:ROUTE]-() } AS dd WHERE dd > 0\nWITH sources, d ORDER BY dd DESC LIMIT 3\nWITH sources, collect(d) AS dests\nUNWIND sources AS src\nUNWIND dests AS dst\nCALL apoc.algo.dijkstra(src, dst, 'ROUTE>', 'distanceKm') YIELD path, weight\nWITH path, weight ORDER BY weight ASC LIMIT 1\nWITH nodes(path) AS ns, relationships(path) AS rs\nWITH [i IN range(0, size(ns)-1) | apoc.create.vNode(['Airport'], {\n       iata: toString(i+1) + ' · ' + ns[i].iata,\n       latitude: ns[i].latitude, longitude: ns[i].longitude, location: ns[i].location,\n       stop: i+1, name: coalesce(ns[i].city, ns[i].name)})] AS vn, rs\nUNWIND range(0, size(vn)-2) AS j\nRETURN vn[j] AS a,\n       apoc.create.vRelationship(vn[j], 'LEG', {seq: j+1, distanceKm: rs[j].distanceKm}, vn[j+1]) AS r,\n       vn[j+1] AS b",
+          "type": "map",
           "x": 0, "y": 9, "width": 12, "height": 5,
-          "selection": { "Airport": "iata", "ROUTE": "distanceKm" },
-          "settings": { "nodeColorScheme": "paired", "relWidthProp": "distanceKm", "downloadImageEnabled": true, "allowDownload": true }
+          "selection": { "Airport": "iata", "LEG": "seq" },
+          "settings": { "layerType": "markers", "clusterMarkers": false, "defaultNodeSize": "large", "relColorProp": "seq", "downloadImageEnabled": true, "allowDownload": true }
         },
         {
           "id": "p2-r08-route-map",
@@ -218,22 +218,22 @@
           "settings": { "layerType": "markers", "clusterMarkers": false, "defaultNodeSize": "medium", "downloadImageEnabled": true }
         },
         {
+          "id": "p2-r11-itinerary-table",
+          "title": "Connecting Itinerary, Leg by Leg (intermediate airports & airlines)",
+          "query": "MATCH (s:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_source_country})\nWITH s, COUNT { (s)-[:ROUTE]->() } AS sd WHERE sd > 0\nWITH s ORDER BY sd DESC LIMIT 3\nWITH collect(s) AS sources\nMATCH (d:Airport)-[:LOCATED_IN]->(:Country {name:$neodash_destination_country})\nWITH sources, d, COUNT { (d)<-[:ROUTE]-() } AS dd WHERE dd > 0\nWITH sources, d ORDER BY dd DESC LIMIT 3\nWITH sources, collect(d) AS dests\nUNWIND sources AS src\nUNWIND dests AS dst\nCALL apoc.algo.dijkstra(src, dst, 'ROUTE>', 'distanceKm') YIELD path, weight\nWITH path, weight ORDER BY weight ASC LIMIT 1\nUNWIND range(0, length(path)-1) AS i\nWITH nodes(path)[i] AS a, nodes(path)[i+1] AS b, relationships(path)[i] AS r, i\nCALL { WITH r OPTIONAL MATCH (al:Airline {iata:r.airline}) RETURN al.name AS alName ORDER BY alName LIMIT 1 }\nRETURN i+1 AS Leg, a.iata AS From, coalesce(a.city, a.name) AS FromCity, b.iata AS To, coalesce(b.city, b.name) AS ToCity, coalesce(alName, r.airline) AS Airline, toInteger(r.distanceKm) AS DistanceKm\nORDER BY Leg",
+          "type": "table",
+          "x": 0, "y": 14, "width": 24, "height": 4,
+          "selection": {},
+          "settings": { "compact": true, "allowDownload": true }
+        },
+        {
           "id": "p2-r09-airports-by-country-bar",
           "title": "Top 20 Countries by Number of Airports",
           "query": "MATCH (a:Airport)-[:LOCATED_IN]->(c:Country)\nRETURN c.name AS Country, count(a) AS Airports ORDER BY Airports DESC LIMIT 20",
           "type": "bar",
-          "x": 0, "y": 14, "width": 24, "height": 5,
+          "x": 0, "y": 18, "width": 24, "height": 5,
           "selection": { "index": "Country", "value": "Airports", "key": "(none)" },
           "settings": { "legend": false, "colors": "set2", "marginLeft": 60, "marginBottom": 110, "barValues": true, "downloadImageEnabled": true }
-        },
-        {
-          "id": "p2-r10-country-graph",
-          "title": "Country-to-Country Connectivity Network (top links)",
-          "query": "MATCH (c1:Country)<-[:LOCATED_IN]-(:Airport)-[:ROUTE]->(:Airport)-[:LOCATED_IN]->(c2:Country)\nWHERE c1.name < c2.name\nWITH c1, c2, count(*) AS flights WHERE flights > 40\nWITH c1, c2, flights ORDER BY flights DESC LIMIT 60\nRETURN c1, apoc.create.vRelationship(c1, 'FLIGHTS', {count: flights}, c2) AS rel, c2",
-          "type": "graph",
-          "x": 0, "y": 19, "width": 24, "height": 6,
-          "selection": { "Country": "name", "FLIGHTS": "count" },
-          "settings": { "nodeColorScheme": "set2", "relWidthProp": "count", "downloadImageEnabled": true, "allowDownload": true }
         }
       ]
     },
@@ -243,29 +243,29 @@
         {
           "id": "p3-r00-intro",
           "title": "",
-          "query": "## 🏆 Aviation Records & Trivia\n\nThe extremes of the world's air network: the longest and shortest scheduled hops, the airports closest to the sky, the most isolated outposts, the busiest city pairs, and which aircraft rule the skies. Distances are computed geographically from airport coordinates; tables are downloadable as CSV.",
+          "query": "## Aviation Records & Trivia\n\nThe extremes of the world's air network: the longest and shortest scheduled hops, the airports closest to the sky, the most isolated outposts, the busiest city pairs, and which aircraft dominates the skies. Distances are computed geographically from airport coordinates; tables are downloadable as CSV.",
           "type": "text",
           "x": 0, "y": 0, "width": 24, "height": 2,
           "selection": {},
           "settings": {}
         },
         {
-          "id": "p3-r01-longest-bar",
-          "title": "Top 15 Longest Non-Stop Routes (km)",
-          "query": "MATCH (a:Airport)-[r:ROUTE]->(b:Airport)\nWHERE a.iata IS NOT NULL AND b.iata IS NOT NULL AND r.distanceKm IS NOT NULL\nWITH CASE WHEN a.airportId < b.airportId THEN a ELSE b END AS x,\n     CASE WHEN a.airportId < b.airportId THEN b ELSE a END AS y, r.distanceKm AS km\nWITH x, y, max(km) AS km\nRETURN x.iata + ' ↔ ' + y.iata AS Route, km AS DistanceKm\nORDER BY DistanceKm DESC LIMIT 15",
-          "type": "bar",
+          "id": "p3-r01-longest-table",
+          "title": "World's Longest Non-Stop Routes (downloadable CSV)",
+          "query": "MATCH (a:Airport)-[r:ROUTE]->(b:Airport)\nWHERE a.iata IS NOT NULL AND b.iata IS NOT NULL AND r.distanceKm IS NOT NULL\nWITH CASE WHEN a.airportId < b.airportId THEN a ELSE b END AS x,\n     CASE WHEN a.airportId < b.airportId THEN b ELSE a END AS y, r.distanceKm AS km\nWITH x, y, max(km) AS km\nRETURN x.iata + ' ↔ ' + y.iata AS Route, coalesce(x.city,x.name) + ' – ' + coalesce(y.city,y.name) AS Cities, km AS DistanceKm\nORDER BY DistanceKm DESC LIMIT 20",
+          "type": "table",
           "x": 0, "y": 2, "width": 12, "height": 6,
-          "selection": { "index": "Route", "value": "DistanceKm", "key": "(none)" },
-          "settings": { "legend": false, "colors": "set1", "layout": "horizontal", "marginLeft": 110, "marginBottom": 50, "barValues": true, "downloadImageEnabled": true }
+          "selection": {},
+          "settings": { "compact": true, "allowDownload": true }
         },
         {
           "id": "p3-r02-aircraft-pie",
           "title": "Most-Used Aircraft Types (by routes flown)",
-          "query": "MATCH ()-[r:ROUTE]->() WHERE r.equipment IS NOT NULL\nUNWIND split(r.equipment, ' ') AS code\nWITH trim(code) AS code WHERE code <> ''\nOPTIONAL MATCH (p:Plane {iata: code})\nRETURN coalesce(p.name, code) AS Aircraft, count(*) AS Routes\nORDER BY Routes DESC LIMIT 12",
+          "query": "MATCH ()-[r:ROUTE]->() WHERE r.equipment IS NOT NULL\nUNWIND split(r.equipment, ' ') AS code\nWITH trim(code) AS code WHERE code <> ''\nOPTIONAL MATCH (p:Plane {iata: code})\nRETURN coalesce(p.name, code) AS Aircraft, count(*) AS Routes\nORDER BY Routes DESC LIMIT 10",
           "type": "pie",
           "x": 12, "y": 2, "width": 12, "height": 6,
           "selection": { "index": "Aircraft", "value": "Routes", "key": "(none)" },
-          "settings": { "legend": true, "colors": "paired", "marginRight": 200, "downloadImageEnabled": true }
+          "settings": { "legend": false, "colors": "paired", "marginTop": 40, "marginRight": 130, "marginBottom": 40, "marginLeft": 130, "downloadImageEnabled": true }
         },
         {
           "id": "p3-r03-altitude-table",
@@ -311,7 +311,7 @@
         {
           "id": "p4-r00-intro",
           "title": "",
-          "query": "## 🔎 Airport & Airline Explorer\n\nInteractive tools. Choose a **From** airport (by IATA code) to map everywhere you can fly non-stop and to see how far the network reaches in a few hops. Choose a **To** airport to check for a direct route. Choose an **airline** to see its entire route network.",
+          "query": "## Airport & Airline Explorer\n\nInteractive trip planner. Choose a **From** airport, a **To** airport, and an **airline**. You then get three things, building on each other: (1) where you can fly **non-stop** from your origin and whether From → To is direct; (2) the **best connecting itinerary** mixing any airlines (shortest distance, numbered stops on a map + leg table); and (3) whether you can do the **whole trip on the one chosen airline** — the feature that makes all three selectors work together. The airline's full route network is shown at the bottom for context.",
           "type": "text",
           "x": 0, "y": 0, "width": 24, "height": 2,
           "selection": {},
@@ -346,8 +346,8 @@
         },
         {
           "id": "p4-r04-destmap",
-          "title": "Where Can I Fly From Here? (direct destinations)",
-          "query": "MATCH (src:Airport {iata:$neodash_from_airport})-[r:ROUTE]->(dst:Airport)\nRETURN src, r, dst",
+          "title": "Where Can I Fly From Here on the Selected Airline? (direct)",
+          "query": "MATCH (al:Airline {name:$neodash_airline}) WITH al.iata AS code LIMIT 1\nMATCH (src:Airport {iata:$neodash_from_airport})-[r:ROUTE {airline:code}]->(dst:Airport)\nRETURN src, r, dst",
           "type": "map",
           "x": 0, "y": 4, "width": 12, "height": 6,
           "selection": { "Airport": "iata" },
@@ -355,8 +355,8 @@
         },
         {
           "id": "p4-r05-desttable",
-          "title": "Direct Destinations & Distances (downloadable CSV)",
-          "query": "MATCH (src:Airport {iata:$neodash_from_airport})-[r:ROUTE]->(dst:Airport)-[:LOCATED_IN]->(co:Country)\nRETURN dst.iata AS To, coalesce(dst.city,'') AS City, co.name AS Country,\n       count(DISTINCT r.airline) AS Airlines, max(r.distanceKm) AS DistanceKm\nORDER BY DistanceKm DESC",
+          "title": "Direct Destinations on the Selected Airline & Distances (downloadable CSV)",
+          "query": "MATCH (al:Airline {name:$neodash_airline}) WITH al.iata AS code LIMIT 1\nMATCH (src:Airport {iata:$neodash_from_airport})-[r:ROUTE {airline:code}]->(dst:Airport)-[:LOCATED_IN]->(co:Country)\nRETURN dst.iata AS To, coalesce(dst.city,'') AS City, co.name AS Country,\n       max(toInteger(r.distanceKm)) AS DistanceKm\nORDER BY DistanceKm DESC",
           "type": "table",
           "x": 12, "y": 4, "width": 12, "height": 6,
           "selection": {},
@@ -390,11 +390,65 @@
           "settings": { "compact": true, "allowDownload": true }
         },
         {
+          "id": "p4-r11-conn-map",
+          "title": "Connecting Route From → To on the Map (stops numbered 1 → N)",
+          "query": "MATCH (src:Airport {iata:$neodash_from_airport}), (dst:Airport {iata:$neodash_to_airport})\nCALL apoc.algo.dijkstra(src, dst, 'ROUTE>', 'distanceKm') YIELD path, weight\nWITH path, weight ORDER BY weight ASC LIMIT 1\nWITH nodes(path) AS ns, relationships(path) AS rs\nWITH [i IN range(0, size(ns)-1) | apoc.create.vNode(['Airport'], {\n       iata: toString(i+1) + ' · ' + ns[i].iata,\n       latitude: ns[i].latitude, longitude: ns[i].longitude, location: ns[i].location,\n       stop: i+1, name: coalesce(ns[i].city, ns[i].name)})] AS vn, rs\nUNWIND range(0, size(vn)-2) AS j\nRETURN vn[j] AS a,\n       apoc.create.vRelationship(vn[j], 'LEG', {seq: j+1, distanceKm: rs[j].distanceKm}, vn[j+1]) AS r,\n       vn[j+1] AS b",
+          "type": "map",
+          "x": 0, "y": 16, "width": 12, "height": 6,
+          "selection": { "Airport": "iata", "LEG": "seq" },
+          "settings": { "layerType": "markers", "clusterMarkers": false, "defaultNodeSize": "large", "relColorProp": "seq", "downloadImageEnabled": true, "allowDownload": true }
+        },
+        {
+          "id": "p4-r12-conn-table",
+          "title": "Connecting Itinerary From → To, Leg by Leg (downloadable CSV)",
+          "query": "MATCH (src:Airport {iata:$neodash_from_airport}), (dst:Airport {iata:$neodash_to_airport})\nCALL apoc.algo.dijkstra(src, dst, 'ROUTE>', 'distanceKm') YIELD path, weight\nWITH path, weight ORDER BY weight ASC LIMIT 1\nUNWIND range(0, length(path)-1) AS i\nWITH nodes(path)[i] AS a, nodes(path)[i+1] AS b, relationships(path)[i] AS r, i\nCALL { WITH r OPTIONAL MATCH (al:Airline {iata:r.airline}) RETURN al.name AS alName ORDER BY alName LIMIT 1 }\nRETURN i+1 AS Leg, a.iata AS From, coalesce(a.city, a.name) AS FromCity, b.iata AS To, coalesce(b.city, b.name) AS ToCity, coalesce(alName, r.airline) AS Airline, toInteger(r.distanceKm) AS DistanceKm\nORDER BY Leg",
+          "type": "table",
+          "x": 12, "y": 16, "width": 12, "height": 6,
+          "selection": {},
+          "settings": { "compact": true, "allowDownload": true }
+        },
+        {
+          "id": "p4-r13-singleairline-divider",
+          "title": "",
+          "query": "### ✈️ Can you fly the whole trip on a single airline?\n\nThis ties all three selectors together: it searches for the fewest-stop itinerary from **From** to **To** using **only the chosen airline's** own routes (up to 4 legs). Compare it with the *best connecting route* above, which is free to mix airlines.",
+          "type": "text",
+          "x": 0, "y": 22, "width": 24, "height": 2,
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "p4-r14-singleairline-value",
+          "title": "Whole trip on the selected airline?",
+          "query": "MATCH (al:Airline {name:$neodash_airline}) WITH al.iata AS code LIMIT 1\nMATCH (from:Airport {iata:$neodash_from_airport}), (to:Airport {iata:$neodash_to_airport})\nOPTIONAL MATCH p = shortestPath( (from)-[:ROUTE* 1..4]->(to) )\nWHERE all(r IN relationships(p) WHERE r.airline = code)\nRETURN CASE WHEN p IS NULL THEN '❌ ' + $neodash_airline + ' can\\'t do ' + $neodash_from_airport + ' → ' + $neodash_to_airport + ' within 4 stops' ELSE '✅ ' + $neodash_airline + ': ' + $neodash_from_airport + ' → ' + $neodash_to_airport + ' in ' + toString(length(p)) + ' leg(s)' END AS SingleAirlineTrip",
+          "type": "value",
+          "x": 0, "y": 24, "width": 24, "height": 2,
+          "selection": {},
+          "settings": { "fontSize": 26, "textAlign": "center", "verticalAlign": "middle", "color": "#2a6ef5" }
+        },
+        {
+          "id": "p4-r15-singleairline-map",
+          "title": "Single-Airline Itinerary on the Map (stops numbered 1 → N)",
+          "query": "MATCH (al:Airline {name:$neodash_airline}) WITH al.iata AS code LIMIT 1\nMATCH (from:Airport {iata:$neodash_from_airport}), (to:Airport {iata:$neodash_to_airport})\nMATCH p = shortestPath( (from)-[:ROUTE* 1..4]->(to) )\nWHERE all(r IN relationships(p) WHERE r.airline = code)\nWITH nodes(p) AS ns, relationships(p) AS rs\nWITH [i IN range(0, size(ns)-1) | apoc.create.vNode(['Airport'], {\n       iata: toString(i+1) + ' · ' + ns[i].iata,\n       latitude: ns[i].latitude, longitude: ns[i].longitude, location: ns[i].location,\n       stop: i+1, name: coalesce(ns[i].city, ns[i].name)})] AS vn, rs\nUNWIND range(0, size(vn)-2) AS j\nRETURN vn[j] AS a,\n       apoc.create.vRelationship(vn[j], 'LEG', {seq: j+1, distanceKm: rs[j].distanceKm}, vn[j+1]) AS r,\n       vn[j+1] AS b",
+          "type": "map",
+          "x": 0, "y": 26, "width": 12, "height": 6,
+          "selection": { "Airport": "iata", "LEG": "seq" },
+          "settings": { "layerType": "markers", "clusterMarkers": false, "defaultNodeSize": "large", "relColorProp": "seq", "downloadImageEnabled": true, "allowDownload": true }
+        },
+        {
+          "id": "p4-r16-singleairline-table",
+          "title": "Single-Airline Itinerary, Leg by Leg (downloadable CSV)",
+          "query": "MATCH (al:Airline {name:$neodash_airline}) WITH al.iata AS code LIMIT 1\nMATCH (from:Airport {iata:$neodash_from_airport}), (to:Airport {iata:$neodash_to_airport})\nMATCH p = shortestPath( (from)-[:ROUTE* 1..4]->(to) )\nWHERE all(r IN relationships(p) WHERE r.airline = code)\nUNWIND range(0, length(p)-1) AS i\nWITH nodes(p)[i] AS a, nodes(p)[i+1] AS b, relationships(p)[i] AS r, i\nRETURN i+1 AS Leg, a.iata AS From, coalesce(a.city, a.name) AS FromCity, b.iata AS To, coalesce(b.city, b.name) AS ToCity, toInteger(r.distanceKm) AS DistanceKm\nORDER BY Leg",
+          "type": "table",
+          "x": 12, "y": 26, "width": 12, "height": 6,
+          "selection": {},
+          "settings": { "compact": true, "allowDownload": true }
+        },
+        {
           "id": "p4-r09-airline-graph",
           "title": "Airline Route Network (graph)",
           "query": "MATCH (al:Airline {name:$neodash_airline}) WHERE al.iata IS NOT NULL\nWITH al LIMIT 1\nMATCH (a:Airport)-[r:ROUTE {airline: al.iata}]->(b:Airport)\nRETURN a, r, b LIMIT 400",
           "type": "graph",
-          "x": 0, "y": 16, "width": 12, "height": 6,
+          "x": 0, "y": 32, "width": 12, "height": 6,
           "selection": { "Airport": "iata", "ROUTE": "(label)" },
           "settings": { "nodeColorScheme": "set2", "downloadImageEnabled": true, "allowDownload": true }
         },
@@ -403,7 +457,7 @@
           "title": "Airline Route Network (map)",
           "query": "MATCH (al:Airline {name:$neodash_airline}) WHERE al.iata IS NOT NULL\nWITH al LIMIT 1\nMATCH (a:Airport)-[r:ROUTE {airline: al.iata}]->(b:Airport)\nRETURN a, r, b LIMIT 400",
           "type": "map",
-          "x": 12, "y": 16, "width": 12, "height": 6,
+          "x": 12, "y": 32, "width": 12, "height": 6,
           "selection": { "Airport": "iata" },
           "settings": { "layerType": "markers", "clusterMarkers": false, "defaultNodeSize": "small", "downloadImageEnabled": true }
         }
