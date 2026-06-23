@@ -65,16 +65,8 @@ airports  airlines  countries  cities  routes
 Neo4j Browser is also available at <http://localhost:7474> (same credentials) if you want to
 run the Cypher queries by hand.
 
-### 5. Produce the report PDF
-
-Open `report/REPORT.html` in **Safari** (or any browser) → **File ▸ Export as PDF…**
-(or `Cmd+P` → *Save as PDF*) → save as `report/REPORT.pdf`. This is the PDF to submit
-alongside the dashboard.
-
 ## Notes
 
-- **Apple Silicon:** the NeoDash image is amd64-only, so `docker-compose.yml` pins
-  `platform: linux/amd64` (runs under emulation — it's just a static frontend).
 - **Distances** are not in OpenFlights; they are computed in Cypher from each airport's
   coordinates via `point.distance()` and stored on every `ROUTE` relationship as `distanceKm`.
 - **Shortest-distance routing** uses `apoc.algo.dijkstra` weighted by `distanceKm`.

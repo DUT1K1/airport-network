@@ -365,7 +365,7 @@
         {
           "id": "p4-r06-direct-value",
           "title": "Can I Fly Direct? (From → To)",
-          "query": "MATCH (a:Airport {iata:$neodash_from_airport}), (b:Airport {iata:$neodash_to_airport})\nOPTIONAL MATCH (a)-[r:ROUTE]->(b)\nRETURN CASE WHEN count(r) > 0 THEN '✅ YES — ' + toString(count(r)) + ' airline(s)' ELSE '❌ No direct route' END AS DirectFlight",
+          "query": "MATCH (a:Airport {iata:$neodash_from_airport}), (b:Airport {iata:$neodash_to_airport})\nOPTIONAL MATCH (a)-[r:ROUTE]->(b)\nRETURN CASE WHEN count(r) > 0 THEN 'YES — ' + toString(count(r)) + ' airline(s)' ELSE 'No direct route' END AS DirectFlight",
           "type": "value",
           "x": 0, "y": 10, "width": 12, "height": 2,
           "selection": {},
@@ -410,7 +410,7 @@
         {
           "id": "p4-r13-singleairline-divider",
           "title": "",
-          "query": "### ✈️ Can you fly the whole trip on a single airline?\n\nThis ties all three selectors together: it searches for the fewest-stop itinerary from **From** to **To** using **only the chosen airline's** own routes (up to 4 legs). Compare it with the *best connecting route* above, which is free to mix airlines.",
+          "query": "### Can you fly the whole trip on a single airline?\n\nThis ties all three selectors together: it searches for the fewest-stop itinerary from **From** to **To** using **only the chosen airline's** own routes (up to 4 legs). Compare it with the *best connecting route* above, which is free to mix airlines.",
           "type": "text",
           "x": 0, "y": 22, "width": 24, "height": 2,
           "selection": {},
@@ -419,7 +419,7 @@
         {
           "id": "p4-r14-singleairline-value",
           "title": "Whole trip on the selected airline?",
-          "query": "MATCH (al:Airline {name:$neodash_airline}) WITH al.iata AS code LIMIT 1\nMATCH (from:Airport {iata:$neodash_from_airport}), (to:Airport {iata:$neodash_to_airport})\nOPTIONAL MATCH p = shortestPath( (from)-[:ROUTE* 1..4]->(to) )\nWHERE all(r IN relationships(p) WHERE r.airline = code)\nRETURN CASE WHEN p IS NULL THEN '❌ ' + $neodash_airline + ' can\\'t do ' + $neodash_from_airport + ' → ' + $neodash_to_airport + ' within 4 stops' ELSE '✅ ' + $neodash_airline + ': ' + $neodash_from_airport + ' → ' + $neodash_to_airport + ' in ' + toString(length(p)) + ' leg(s)' END AS SingleAirlineTrip",
+          "query": "MATCH (al:Airline {name:$neodash_airline}) WITH al.iata AS code LIMIT 1\nMATCH (from:Airport {iata:$neodash_from_airport}), (to:Airport {iata:$neodash_to_airport})\nOPTIONAL MATCH p = shortestPath( (from)-[:ROUTE* 1..4]->(to) )\nWHERE all(r IN relationships(p) WHERE r.airline = code)\nRETURN CASE WHEN p IS NULL THEN $neodash_airline + ' can\\'t do ' + $neodash_from_airport + ' → ' + $neodash_to_airport + ' within 4 stops' ELSE $neodash_airline + ': ' + $neodash_from_airport + ' → ' + $neodash_to_airport + ' in ' + toString(length(p)) + ' leg(s)' END AS SingleAirlineTrip",
           "type": "value",
           "x": 0, "y": 24, "width": 24, "height": 2,
           "selection": {},

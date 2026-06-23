@@ -1,4 +1,4 @@
-# Global Flight Network Dashboard — Project Report
+# Global Flight Network Dashboard, Project Report
 
 **Course:** Graph Databases (KIU, Semester 8)  ·  **Author:** Davit Maisuradze
 **Stack:** Neo4j 5 (graph database) + NeoDash 2.4 (dashboard) + Docker + APOC
@@ -21,12 +21,12 @@
 
 ## 1. Overview
 
-This project loads the global airport network into **Neo4j** and explores it through an interactive **NeoDash** dashboard. Airports become nodes, the routes between them become relationships, and the questions that air travel naturally raises — *which airports are the biggest hubs? how do I get from country A to country B when there is no direct flight? can I fly this whole trip on a single airline?* become short graph traversals.
+This project loads the global airport network into **Neo4j** and explores it through an interactive **NeoDash** dashboard. Airports become nodes, the routes between them become relationships, and the questions that air travel naturally raises: *which airports are the biggest hubs? how do I get from country A to country B when there is no direct flight? can I fly this whole trip on a single airline?* become short graph traversals.
 
 The finished dashboard has **four pages and 47 reports**, two of which are fully interactive
 (driven by dropdown parameters). The headline feature is **automatic route building**: pick
 any two countries (or two airports) and the dashboard computes the shortest connecting
-itinerary through intermediate airports, even when no direct flight exists — for example
+itinerary through intermediate airports, even when no direct flight exists: for example
 **Georgia → Japan** is built as `TBS → URC → PEK → KIX`.
 
 ---
@@ -56,11 +56,11 @@ than a relational table would, while staying intuitive enough to present to a no
 
 **Node types (5):**
 
-* **Airport** — `airportId, name, city, country, iata, icao, latitude, longitude, altitude (meters), location (spatial point)`
-* **Airline** — `airlineId, name, iata, icao, callsign, country, active`
-* **Country** — `name, isoCode, dafifCode`
-* **City** — `key, name, country`
-* **Plane** — `iata, icao, name` (aircraft-type lookup, joined to routes by equipment code)
+* **Airport**: `airportId, name, city, country, iata, icao, latitude, longitude, altitude (meters), location (spatial point)`
+* **Airline**: `airlineId, name, iata, icao, callsign, country, active`
+* **Country**: `name, isoCode, dafifCode`
+* **City**: `key, name, country`
+* **Plane**: `iata, icao, name` (aircraft-type lookup, joined to routes by equipment code)
 
 **Relationship types (5):**
 
@@ -68,17 +68,17 @@ than a relational table would, while staying intuitive enough to present to a no
 * `(:Airport)-[:IN_CITY]->(:City)`
 * `(:City)-[:IN_COUNTRY]->(:Country)`
 * `(:Airline)-[:REGISTERED_IN]->(:Country)`
-* `(:Airport)-[:ROUTE {airline, airlineId, stops, equipment, distanceKm}]->(:Airport)` — the
+* `(:Airport)-[:ROUTE {airline, airlineId, stops, equipment, distanceKm}]->(:Airport)`, the
   property-rich relationship that carries the operating airline and, crucially, the
   **geographic distance** of the route. There can be **several `ROUTE` edges between the same
-  pair of airports** — one per operating airline.
+  pair of airports** one per operating airline.
 
 ---
 
 ## 4. Conversion and import pipeline
 
 The raw OpenFlights files are headerless, comma-separated and use `\N` for nulls, so no
-manual editing was needed — Neo4j reads them directly with `LOAD CSV`.
+manual editing was needed, Neo4j reads them directly with `LOAD CSV`.
 
 1. **`scripts/download_data.sh`** downloads the `.dat` files into `./data`, which is mounted
    into the Neo4j container's import directory.
@@ -107,7 +107,7 @@ distanceKm = round(point.distance(src.location, dst.location) / 1000)
 
 This single derived property powers the distance histogram, every route/leg table, and all of
 the shortest distance routing. Because routes depend on it, the airport `location` points must
-exist *before* routes load — which is why the import order (01 → 05) is fixed.
+exist *before* routes load which is why the import order (01 → 05) is fixed.
 
 ---
 
@@ -116,54 +116,54 @@ exist *before* routes load — which is why the import order (01 → 05) is fixe
 The dashboard is organised into four themed pages. Tables expose **CSV download** and
 charts/maps expose **PNG export**.
 
-### Page 1 — Airport Network Analysis *(overview)*
+### Page 1: Airport Network Analysis *(overview)*
 
 A bird's-eye view of the whole network.
 
-* **KPI cards** — total airports, routes, airlines, countries.
-* **Bar chart** — top 15 busiest airports by total routes (in + out).
-* **Graph** — connection network of the **10 largest hubs** as a node-link diagram.
-* **Line chart** — distribution of route distances in 500 km buckets.
-* **Pie chart** — top 10 airlines by number of routes.
-* **Table** (CSV) — full airport-connectivity ranking.
-* **Maps** — major airports plotted from coordinates, plus a global airport **density heatmap**.
+* **KPI cards**: total airports, routes, airlines, countries.
+* **Bar chart**: top 15 busiest airports by total routes (in + out).
+* **Graph**: connection network of the **10 largest hubs** as a node-link diagram.
+* **Line chart**: distribution of route distances in 500 km buckets.
+* **Pie chart**: top 10 airlines by number of routes.
+* **Table** (CSV): full airport-connectivity ranking.
+* **Maps**: major airports plotted from coordinates, plus a global airport **density heatmap**.
 
-### Page 2 — Country & Route Connectivity *(interactive)*
+### Page 2: Country & Route Connectivity *(interactive)*
 
 Pick a **source** and a **destination** country; everything below reacts.
 
 * Two **parameter selectors** (`$neodash_source_country`, `$neodash_destination_country`).
-* **KPIs** — number of direct routes between the countries, and the shortest *connecting*
+* **KPIs**: number of direct routes between the countries, and the shortest *connecting*
   distance.
-* **Bar charts** — top destination countries from the source; top countries by airport count.
-* **Table** (CSV) — every direct route between the two countries.
-* **Connecting-flight map** — the **auto-built shortest itinerary** between the two countries'
+* **Bar charts**: top destination countries from the source; top countries by airport count.
+* **Table** (CSV): every direct route between the two countries.
+* **Connecting-flight map**: the **auto-built shortest itinerary** between the two countries'
   main hubs, drawn on a world map with **numbered stops** (`1 · TBS → 2 · URC → …`). Works
   even when there is no direct flight.
-* **Leg-by-leg table** (CSV) — each hop of that itinerary: airports, operating airline, distance.
-* **Map** — airports of both selected countries.
+* **Leg-by-leg table** (CSV): each hop of that itinerary: airports, operating airline, distance.
+* **Map**: airports of both selected countries.
 
-### Page 3 — Aviation Records & Trivia *(extremes)*
+### Page 3: Aviation Records & Trivia *(extremes)*
 
 The superlatives of the network.
 
-* **Pie chart** — most-used aircraft types (joined to `Plane` nodes; Airbus A320 leads).
-* **Tables** (CSV) — world's longest non-stop routes (SYD↔DFW, 13,824 km), highest-altitude
+* **Pie chart**: most-used aircraft types (joined to `Plane` nodes; Airbus A320 leads).
+* **Tables** (CSV): world's longest non-stop routes (SYD↔DFW, 13,824 km), highest-altitude
   airports (Daocheng Yading, 4,411 m), most isolated airports, and the world's shortest
   scheduled flight (**Papa Westray ↔ Westray, 3 km**).
-* **Bar chart** — busiest city-to-city connections.
+* **Bar chart**: busiest city-to-city connections.
 
-### Page 4 — Airport & Airline Explorer *(interactive trip planner)*
+### Page 4: Airport & Airline Explorer *(interactive trip planner)*
 
 Pick a **From** airport, a **To** airport, and an **airline**. The page builds up in three
 layers that make all three selectors work *together*:
 
-1. **From the origin** — a map + table of every destination reachable **non-stop on the
+1. **From the origin**: a map + table of every destination reachable **non-stop on the
    chosen airline**, and a reachability line chart showing how many airports are reachable
    within 1–4 stops (the *small-world effect*).
-2. **From → To, any airline** — a yes/no "Can I fly direct?" card, plus the **best connecting
+2. **From → To, any airline**: a yes/no "Can I fly direct?" card, plus the **best connecting
    itinerary** (shortest distance, numbered map + leg table) that is free to mix airlines.
-3. **From → To on one airline** — the headline: a verdict card (*"✅ Emirates: CDG → JFK in 2
+3. **From → To on one airline**: the headline: a verdict card (*"Emirates: CDG → JFK in 2
    leg(s)"*) plus a numbered map and leg table for the fewest-stop trip flown **entirely on
    the selected carrier**.
 
@@ -173,7 +173,7 @@ The selected airline's full route network (graph + map) is shown at the bottom f
 
 ## 6. Key Cypher queries
 
-These are the queries that do the real work — the ones worth pointing a reader at.
+These are the queries that do the real work, the ones worth pointing a reader at.
 
 ### 6.1 Great-circle distance at import (`import/05_routes.cypher`)
 
@@ -197,7 +197,7 @@ WITH a, COUNT { (a)-[:ROUTE]->() } + COUNT { (a)<-[:ROUTE]-() } AS routes
 RETURN a.iata, routes ORDER BY routes DESC LIMIT 15
 ```
 
-### 6.3 Country-to-country connecting route — *the flagship* (Page 2)
+### 6.3 Country-to-country connecting route: *the flagship* (Page 2)
 
 There is no direct Georgia → Japan flight, so the dashboard builds one. It takes the **top 3
 hubs of each country**, runs **Dijkstra weighted by `distanceKm`** between every source/
@@ -223,7 +223,7 @@ RETURN path ORDER BY weight ASC LIMIT 1
 
 NeoDash maps can't draw arrowheads, so direction is shown by **numbering the stops**. The path
 is rebuilt with **virtual nodes** (`apoc.create.vNode`) whose label carries the stop order,
-and **virtual relationships** carrying the leg sequence — these render on the map without
+and **virtual relationships** carrying the leg sequence; these render on the map without
 touching the stored graph:
 
 ```cypher
@@ -239,7 +239,7 @@ RETURN vn[j] AS a,
 
 ### 6.5 Single-airline routing (Page 4)
 
-*"Can I fly the whole trip on one carrier?"* — `shortestPath` with the airline constraint
+*"Can I fly the whole trip on one carrier?"*: `shortestPath` with the airline constraint
 pushed into the search as an `all(...)` predicate, so it finds the fewest-stop path and stops
 early (sub-second even for hub-heavy airlines):
 
@@ -270,7 +270,7 @@ ORDER BY Stops
 ## 7. Design decisions and challenges
 
 * **Computing distance instead of sourcing it.** The dataset has no distances, so deriving
-  `distanceKm` from spatial points (§5) was the key enabler — it is the weight behind every
+  `distanceKm` from spatial points (§5) was the key enabler; it is the weight behind every
   Dijkstra and every distance ranking.
 * **Top-3 hubs, not one.** An earlier version routed between only the single busiest airport
   of each country and sometimes returned an empty or sub-optimal path. Searching the top three
